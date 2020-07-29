@@ -1,25 +1,26 @@
 {
-  "name": "ui-driver-skel",
-  "version": "0.0.2",
-  "description": "Skeleton Rancher UI driver for custom docker-machine drivers",
+  "name": "ui-cluster-driver-otc",
+  "version": "0.1.0",
+  "description": "OpenTelekomCloud Node Driver",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rancher/ui-driver-skel.git"
+    "url": "https://github.com/opentelekomcloud/ui-driver-otc"
   },
-  "author": "Rancher Labs, Inc.",
+  "author": "T-Systems GmbH",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/rancher/rancher/issues"
+    "url": "https://github.com/opentelekomcloud/ui-driver-otc/issues"
   },
   "scripts": {
     "start": "./node_modules/.bin/gulp server",
     "clean": "./node_modules/.bin/gulp clean",
     "build": "./node_modules/.bin/gulp build"
   },
-  "homepage": "https://github.com/rancher/ui-driver-skel#readme",
+  "homepage": "https://github.com/opentelekomcloud/ui-driver-otc",
   "devDependencies": {
     "@babel/core": "^7.2.2",
     "@babel/preset-env": "^7.2.3",
+    "@rancher/ember-shared": "0.0.6",
     "babel-plugin-add-module-exports": "^1.0.2",
     "babel-plugin-transform-es2015-modules-amd": "^6.24.1",
     "del": "3.0.0",
@@ -35,5 +36,8 @@
     "replace-string": "^2.0.0",
     "yargs": "^15.4.1",
     "minimist": ">=1.2.3"
+  },
+  "dependencies": {
+    "moment": "^2.27.0"
   }
 }

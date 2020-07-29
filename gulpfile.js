@@ -17,7 +17,7 @@ const BASE = 'component/';
 const DIST = 'dist/';
 const TMP = 'tmp/';
 const ASSETS = 'assets/';
-const DRIVER_NAME = argv.name || pkg.name.replace(/^ui-driver-/, '');
+const DRIVER_NAME = 'otc';
 
 console.log('Driver Name:', DRIVER_NAME);
 
@@ -117,7 +117,15 @@ gulp.task('rexport', gulp.series('babel', function () {
     .pipe(gulp.dest(TMP));
 }));
 
-gulp.task('compile', gulp.series('rexport', function () {
+gulp.task('client', gulp.series('rexport', function () {
+  return gulp.src([
+    `${BASE}client.js`
+  ])
+    .pipe(replace(NAME_TOKEN, DRIVER_NAME))
+    .pipe(gulpConcat(`client.js`, { newLine: '\n' }))
+    .pipe(gulp.dest(DIST));
+}))
+gulp.task('compile', gulp.series('client', function () {
   return gulp.src([
     `${TMP}**.js`
   ])
