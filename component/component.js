@@ -1,15 +1,14 @@
 /*!!!!!!!!!!!Do not change anything between here (the DRIVERNAME placeholder will be automatically replaced at buildtime)!!!!!!!!!!!*/
 import NodeDriver from 'shared/mixins/node-driver'
-import { otcClient } from './client'
 // do not remove LAYOUT, it is replaced at build time with a base64 representation of the template of the hbs template
 // we do this to avoid converting template to a js file that returns a string and the cors issues that would come along
 // with that
-const LAYOUT
+const LAYOUT;
 /*!!!!!!!!!!!DO NOT CHANGE END!!!!!!!!!!!*/
 
 /*!!!!!!!!!!!GLOBAL CONST START!!!!!!!!!!!*/
 // EMBER API Access - if you need access to any of the Ember API's add them here in the same manner rather then import
-// them via modules, since the dependencies exist in rancher we dont want to expor the modules in the amd def
+// them via modules, since the dependencies exist in rancher we dont want to export the modules in the amd def
 const $ = Ember.$
 const computed = Ember.computed
 const observer = Ember.observer
@@ -43,12 +42,11 @@ function a2f(src) {
   return src.map((v) => ({ label: v, value: v }))
 }
 
-
 const languages = {
   "en-us": {
     "machine": {
       "driverOtc": {
-        "access":              "Account Access",
+        "access":              "User Credentials",
         "authorize":           "Authorize",
         "next":                {
           "availability": "Next: Select Availability",
@@ -67,16 +65,14 @@ const languages = {
           "password": "Password Provided"
         },
         "projectId":           "Project ID",
-        "osUsername":          "OpenStack Username",
-        "osPassword":          "OpenStack Password",
-        "osUserDomainName":    "OpenStack Domain Name",
-        "osProjectName":       "OpenStack Project Name",
-        "accessKey":           "Access Key ID",
-        "accessSecret":        "Access Key Secret",
+        "osUsername":          "Username",
+        "osPassword":          "Password",
+        "osUserDomainName":    "Domain Name",
+        "osProjectName":       "Project Name",
         "availableZone":       {
           "header":   "Availability",
           "label":    {
-            "zone":   "Zone",
+            "zone":   "Availability Zone",
             "region": "Region"
           },
           "dropdown": {
@@ -87,7 +83,7 @@ const languages = {
         "vpcAndSecurity":      {
           "header":   "Subnet and Security Groups",
           "vpc":      "VPC",
-          "security": "Security Group",
+          "security": "Security Groups",
           "subnet":   "Subnet",
           "dropdown": {
             "vpc":      "Select a VPC",
@@ -123,18 +119,17 @@ export default Ember.Component.extend(NodeDriver, {
   config:     alias('model.%%DRIVERNAME%%Config'),
   app:        service(),
 
-  catalogUrls:        null,
-  step:               1,
-  _prevStep:          1,
-  errors:             null,
-  intl:               service(),
-  volumeTypes:        a2f(diskTypes),
-  itemsLoading:       false,
-  flavors:            [],
-  images:             [],
-  vpcs:               [],
-  osAvailabilityZone: null,
-  subnet:             null,
+  catalogUrls:  null,
+  step:         1,
+  _prevStep:    1,
+  errors:       null,
+  intl:         service(),
+  volumeTypes:  a2f(diskTypes),
+  itemsLoading: false,
+  flavors:      [],
+  images:       [],
+  vpcs:         [],
+  subnet:       null,
 
   authSuccess:  false,
   subnets:      [],
@@ -162,17 +157,19 @@ export default Ember.Component.extend(NodeDriver, {
   // Write your component here, starting with setting 'model' to a machine with your config populated
   bootstrap: function () {
     let config = get(this, 'globalStore').createRecord({
-      type:        '%%DRIVERNAME%%Config',
-      region:      'eu-de',
-      sshUser:     'linux',
-      username:    '',
-      password:    '',
-      domainName:  '',
-      projectName: '',
-      vpcId:       '',
-      subnetId:    '',
-      flavorId:    '',
-      imageId:     '',
+      type:             '%%DRIVERNAME%%Config',
+      region:           'eu-de',
+      sshUser:          'linux',
+      username:         '',
+      password:         '',
+      domainName:       '',
+      projectName:      '',
+      availabilityZone: '',
+      vpcId:            '',
+      subnetId:         '',
+      flavorId:         '',
+      imageId:          '',
+      secGroups:        [],
     })
 
     set(this, 'config', config)
@@ -183,6 +180,8 @@ export default Ember.Component.extend(NodeDriver, {
     this.loadLanguage(lang)
 
     set(this, 'otc', otcClient(region))
+
+    console.log(`Config: ${JSON.stringify(config)}`)
   },
   actions:   {
     authClient() {
@@ -193,11 +192,29 @@ export default Ember.Component.extend(NodeDriver, {
         get(this, 'config.projectName'),
       ).then(() => {
         set(this, 'authSuccess', true)
+        set(this, 'errors', [])
+        set(this, 'step', 2)
         return resolve()
       }).catch(e => {
         set(this, 'errors', [e])
         return reject()
       })
+    },
+
+    goToStep3() {
+      set(this, 'errors', [])
+      set(this, 'step', 3)
+    },
+
+    multiSecurityGroupSelect() {
+      let options = Array.prototype.slice.call($('.existing-security-groups')[0], 0);
+      let selectedOptions = [];
+
+      options.filterBy('selected', true).forEach((cap) => {
+        return selectedOptions.push(cap.value);
+      });
+
+      set(this, 'config.secGroups', selectedOptions);
     },
 
   },
@@ -227,7 +244,6 @@ export default Ember.Component.extend(NodeDriver, {
       set(this, 'newVPC.create', false)
       set(this, 'newVPC.name', '')
       set(this, 'errors', [])
-      this.updateVPCs()
       cb(true)
     }).catch((er) => {
       set(this, 'newVPC.name', '')
@@ -279,16 +295,21 @@ export default Ember.Component.extend(NodeDriver, {
     const vpcs = get(this, 'vpcs')
     return vpcs.map((vpc) => ({ label: `${vpc.name} (${vpc.id})`, value: vpc.id }))
   }),
-
   updateVPCs: function () {
-    return get(this, 'otc').listVPCs().then(vpcs => {
+    return this.otc.listVPCs().then(vpcs => {
       set(this, 'vpcs', vpcs)
+      console.log(`VPCs: ${vpcs}`)
       return resolve()
-    }).catch(() => {
-      console.error('Failed to get VPCs')
+    }).catch((e) => {
+      console.error(`Failed to get VPCs: ${e}`)
       return reject()
     })
   },
+  loadVPCs:   observer('authSuccess', function () {
+    if (get(this, 'authSuccess')) {
+      this.updateVPCs()
+    }
+  }),
 
   subnetChoices: computed('subnets', function () {
     const subnets = get(this, 'subnets')
@@ -309,11 +330,12 @@ export default Ember.Component.extend(NodeDriver, {
     })
   },
   vpcUpdated:    observer('config.vpcId', function () {
+    console.log(`VPC is now set to ${get(this, 'config.vpcId')}`)
     this.updateSubnets()
   }),
 
   nodeFlavorChoices: computed('authSuccess', function () {
-    return get(this, 'otc').listNodeFlavors().then(flavors => {
+    return this.otc.listNodeFlavors().then(flavors => {
       console.log('Flavors: ', flavors)
       return flavors.map((f) => ({ label: f.name, value: f.id }))
     }).catch(() => {
@@ -325,7 +347,7 @@ export default Ember.Component.extend(NodeDriver, {
     if (!get(this, 'authSuccess')) {
       return []
     }
-    return get(this, 'otc').listKeyPairs().then(keyPairs => {
+    return this.otc.listKeyPairs().then(keyPairs => {
       console.log('Received key pairs: ', keyPairs)
       return keyPairs.map((k) => {
         let name = k.keypair.name
@@ -341,6 +363,33 @@ export default Ember.Component.extend(NodeDriver, {
       console.log('Failed to load key pairs')
       return reject()
     })
+  }),
+
+  azChoices: a2f(availabilityZones),
+
+  sgChoices: [],
+  sgUpdate: observer('authSuccess', function () {
+    if (!get(this, 'authSuccess')) {
+      return
+    }
+    return this.otc.listSecurityGroups().then(groups => {
+      console.log(`Got groups: ${JSON.stringify(groups)}`)
+      const choices = groups.map((g) => {
+        return  {
+          label: `${g.name} (${g.id})`,
+          value: g.id
+        }
+      })
+      set(this, 'sgChoices', choices)
+    }).catch(() => {
+      console.log('Failed to load sec groups')
+      return reject()
+    })
+  }),
+
+  configChanged: observer('config', function () {
+    const cfg = get(this, 'config')
+    console.log(`Config: ${JSON.stringify(cfg)}`)
   }),
 
   languageChanged: observer('intl.locale', function () {

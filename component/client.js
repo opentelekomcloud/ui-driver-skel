@@ -1,11 +1,9 @@
-const $ = Ember.$
 const appjson = 'application/json;charset=utf-8'
 const authURL = 'https://iam.eu-de.otc.t-systems.com/v3/auth/tokens'
 
 const defaultDNS = ['100.125.4.25', '8.8.8.8']
 
 const resolve = Ember.RSVP.resolve
-const Promise = Ember.RSVP.Promise
 const reject = Ember.RSVP.reject
 
 /**
@@ -44,7 +42,7 @@ function viaProxy(url) {
  * @param region
  * @return {OpenTelekomCloudClient}
  */
-export function otcClient(region) {
+function otcClient(region) {
   return {
     vpcEndpoint:  '',
     novaEndpoint: '',

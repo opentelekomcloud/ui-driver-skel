@@ -123,8 +123,9 @@ gulp.task('client', gulp.series('rexport', function () {
   ])
     .pipe(replace(NAME_TOKEN, DRIVER_NAME))
     .pipe(gulpConcat(`client.js`, { newLine: '\n' }))
-    .pipe(gulp.dest(DIST));
-}))
+    .pipe(gulp.dest(TMP));
+}));
+
 gulp.task('compile', gulp.series('client', function () {
   return gulp.src([
     `${TMP}**.js`

@@ -18,8 +18,9 @@
     "md5",
     "_",
     "NoVNC",
-    "commonmark"
+    "commonmark",
   ],
+  "asi": true,
   "browser" : true,
   "boss" : true,
   "curly": true,
@@ -43,6 +44,5 @@
   "strict": false,
   "white": false,
   "eqnull": true,
-  "esnext": true,
   "unused": true
 }
