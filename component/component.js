@@ -33,6 +33,8 @@ const availabilityZones = [
   'eu-de-03',
 ]
 
+const ubuntuRegex = new RegExp('_[Uu]buntu_')
+
 /**
  * Convert string array to field array
  * @param src {string[]}
@@ -160,7 +162,6 @@ export default Ember.Component.extend(NodeDriver, {
     let config = get(this, 'globalStore').createRecord({
       type:             '%%DRIVERNAME%%Config',
       region:           'eu-de',
-      sshUser:          'linux',
       username:         '',
       password:         '',
       domainName:       '',
@@ -427,9 +428,26 @@ export default Ember.Component.extend(NodeDriver, {
     }
     const defaultImageName = get(this, 'config.imageName')
     get(this, 'imageChoices').then(images => {
-      const defaultImageId = images.find(i => i.label === defaultImageName, images).value
+      const defaultImageId = images.find(i => i.label === defaultImageName).value
       set(this, 'config.imageId', defaultImageId)
     })
+  }),
+
+  imageSelected: observer('config.imageId', function () {
+    const imageId = get(this, 'config.imageId')
+    get(this, 'imageChoices').then(images => {
+      const imageName = images.find(i => i.value === imageId).label
+      set(this, 'config.imageName', imageName)
+    })
+  }),
+
+  ubuntuSelected: observer('config.imageName', function () {
+    const imageName = get(this, 'config.imageName')
+    if (ubuntuRegex.test(imageName)) {  // default user for Ubuntu... images is `ubuntu`
+      set(this, 'config.sshUser', 'ubuntu')
+    } else {
+      set(this, 'config.sshUser', 'linux')
+    }
   }),
 
   volumeTypeChoices: a2f(diskTypes),

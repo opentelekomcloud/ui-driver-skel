@@ -242,7 +242,7 @@
                     value=config.imageId
             }}
           {{else}}
-            <div class="form-control-static text-muted text-italic">{{config.imageId}}</div>
+            <div class="form-control-static text-muted text-italic">{{config.imageName}}</div>
           {{/if}}
         </div>
       </div>
@@ -254,15 +254,6 @@
           {{input type="text"
                   class="form-control"
                   value=config.sshUser
-          }}
-        </div>
-        <div class="col-sm-12 col-md-2 form-label">
-          <label class="form-control-static">{{t 'machine.driverOtc.instance.rootPassword'}}</label>
-        </div>
-        <div class="col-sm-12 col-md-4">
-          {{input type="text"
-                  class="form-control"
-                  value=config.adminPassword
           }}
         </div>
       </div>
