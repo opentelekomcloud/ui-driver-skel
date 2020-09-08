@@ -56,10 +56,10 @@
         </div>
         <div class="col-sm-12 col-md-4">
           {{#if (eq step 1)}}
-            {{input type="text"
-                    class="form-control"
-                    name="project-name"
-                    value=config.projectName
+            {{new-select class="form-control"
+                         name="project-name"
+                         content=projectChoices
+                         value=config.projectName
             }}
           {{else}}
             <div class="form-control-static text-muted text-italic">{{config.projectName}}</div>
@@ -127,7 +127,7 @@
           <label class="form-control-static">{{t 'machine.driverOtc.availableZone.label.region'}}</label>
         </div>
         <div class="col-sm-12 col-md-4">
-          <div class="form-control-static text-muted">{{model.otcConfig.region}}</div>
+          <div class="form-control-static text-muted">{{config.region}}</div>
         </div>
       </div>
       {{#if (eq step 2)}}
@@ -172,16 +172,19 @@
           {{/if}}
         </div>
         <div class="col-sm-12 col-md-2 form-label">
-          <label for="mul-sel" class="form-control-static">{{t 'machine.driverOtc.vpcAndSecurity.security'}}</label>
+          <label class="form-control-static">{{t 'machine.driverOtc.vpcAndSecurity.security'}}</label>
         </div>
         <div class="col-sm-12 col-md-4">
           {{#if (eq step 3)}}
-            <select multiple="multiple" id="mul-sel" class="form-control existing-security-groups">
+            <select multiple="multiple"
+                    class="form-control existing-security-groups"
+                    onchange={{action "multiSecurityGroupSelect" ""}}
+            >
               {{#each sgChoices as |choice|}}
                 <option value={{choice.value}}
                         selected={{array-includes config.secGroups choice.value}}
                 >
-                    {{choice.label}}
+                  {{choice.label}}
                 </option>
               {{else}}
                 Please create security groups via console
@@ -197,7 +200,7 @@
           {{#if itemsLoading}}
             <button class="btn btn-primary"><i class="icon icon-spinner icon-spin"></i> {{t 'generic.loading'}}</button>
           {{else}}
-            {{#if (and config.secGroups config.subnetId)}}
+            {{#if readyForStep4}}
               <button class="btn btn-primary" {{action 'goToStep4'}} name="submit">{{t
                       'machine.driverOtc.next.instance'}}</button>
             {{else}}
@@ -208,19 +211,7 @@
       {{/if}}
     {{/if}}
 
-    {{#if (and (gte step 4) (not (and flavors images)))}}
-      <div class="text-center">
-        <i class="icon icon-spinner icon-spin"></i> {{t 'machine.driverOtc.loadingFlavors'}}
-      </div>
-    {{/if}}
-
-    {{#if (and (eq step 4) (and flavors images))}}
-      <div class="over-hr r-mt20 r-mb20">
-        <span>{{t 'machine.driverOtc.instance.header'}}</span>
-      </div>
-      {{!-- This partial contains the quantity, name, and description fields --}}
-      {{partial "host/add-common"}}
-
+    {{#if (eq step 4)}}
       <div class="over-hr r-mt20 r-mb20">
         <span>{{t 'machine.driverOtc.instance.options'}}</span>
       </div>
@@ -233,14 +224,11 @@
           {{#if (eq step 4)}}
             {{searchable-select
                     classNames="form-control"
-                    optionLabelPath="name"
-                    optionValuePath='id'
-                    content=flavors
-                    prompt='machine.driverOtc.instance.dropdown.flavorid'
-                    value=model.otcConfig.flavorId
+                    content=nodeFlavorChoices
+                    value=config.flavorId
             }}
           {{else}}
-            <div class="form-control-static text-muted text-italic">{{model.otcConfig.flavorId}}</div>
+            <div class="form-control-static text-muted text-italic">{{config.flavorId}}</div>
           {{/if}}
         </div>
         <div class="col-sm-12 col-md-2 form-label">
@@ -248,16 +236,13 @@
         </div>
         <div class="col-sm-12 col-md-4">
           {{#if (eq step 4)}}
-            {{new-select
+            {{searchable-select
                     classNames="form-control"
-                    optionLabelPath="name"
-                    optionValuePath='id'
-                    content=images
-                    prompt='machine.driverOtc.instance.dropdown.imageid'
-                    value=model.otcConfig.imageId
+                    content=imageChoices
+                    value=config.imageId
             }}
           {{else}}
-            <div class="form-control-static text-muted text-italic">{{model.otcConfig.imageId}}</div>
+            <div class="form-control-static text-muted text-italic">{{config.imageId}}</div>
           {{/if}}
         </div>
       </div>
@@ -268,7 +253,7 @@
         <div class="col-sm-12 col-md-4">
           {{input type="text"
                   class="form-control"
-                  value=model.otcConfig.sshUser
+                  value=config.sshUser
           }}
         </div>
         <div class="col-sm-12 col-md-2 form-label">
@@ -277,7 +262,7 @@
         <div class="col-sm-12 col-md-4">
           {{input type="text"
                   class="form-control"
-                  value=model.otcConfig.adminPassword
+                  value=config.adminPassword
           }}
         </div>
       </div>
@@ -289,7 +274,7 @@
           <div class="input-group">
             {{input type="number"
                     class="form-control"
-                    value=model.otcConfig.rootVolumeSize
+                    value=config.rootVolumeSize
             }}
             <span class="input-group-addon">GB</span>
           </div>
@@ -300,11 +285,8 @@
         <div class="col-sm-12 col-md-4">
           {{new-select
                   classNames="form-control"
-                  content=volumeTypes
-                  optionLabelPath='name'
-                  optionValuePath='name'
-                  prompt='machine.driverOtc.instance.dropdown.type'
-                  value=model.otcConfig.rootVolumeType
+                  content=volumeTypeChoices
+                  value=config.rootVolumeType
           }}
         </div>
       </div>
@@ -315,16 +297,35 @@
         <div class="col-sm-12 col-md-4">
           {{input type="number"
                   class="form-control"
-                  value=model.otcConfig.bandwidthSize
+                  value=config.bandwidthSize
           }}
         </div>
       </div>
-      {{!-- This partial contains the Labels and Advanced Options fields --}}
-      {{partial "host/add-options"}}
       {{!-- This component shows the Create and Cancel buttons --}}
       {{save-cancel save="save" cancel="cancel"}}
     {{/if}}
   </div>
+  {{form-name-description
+          model=model
+          nameRequired=true
+          rowClass="row mb-10"
+  }}
+
+  {{form-user-labels
+          initialLabels=labelResource.labels
+          setLabels=(action "setLabels")
+          expand=(action expandFn)
+  }}
+
+  {{form-node-taints
+          model=model
+          expand=(action expandFn)
+  }}
+
+  {{form-engine-opts
+          machine=model
+          showEngineUrl=showEngineUrl
+  }}
   {{!-- This component shows errors produced by validate() in the component --}}
   {{top-errors errors=errors}}
 </section>

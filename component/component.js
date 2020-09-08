@@ -98,6 +98,7 @@ const languages = {
           "images":         "Images",
           "sshUser":        "SSH User",
           "rootPassword":   "Root Password",
+          "privateKey":     "SSH Private Key",
           "rootVolume":     "Root Volume Size",
           "rootVolumeType": "Root Volume Type",
           "size":           "Bandwidth Size",
@@ -122,7 +123,7 @@ export default Ember.Component.extend(NodeDriver, {
   catalogUrls:  null,
   step:         1,
   _prevStep:    1,
-  errors:       null,
+  errors:       [],
   intl:         service(),
   volumeTypes:  a2f(diskTypes),
   itemsLoading: false,
@@ -163,13 +164,15 @@ export default Ember.Component.extend(NodeDriver, {
       username:         '',
       password:         '',
       domainName:       '',
-      projectName:      '',
+      projectName:      'eu-de',
       availabilityZone: '',
       vpcId:            '',
       subnetId:         '',
       flavorId:         '',
       imageId:          '',
       secGroups:        [],
+      k8sGroup:         true,
+      keypairName:      '',
     })
 
     set(this, 'config', config)
@@ -183,7 +186,8 @@ export default Ember.Component.extend(NodeDriver, {
 
     console.log(`Config: ${JSON.stringify(config)}`)
   },
-  actions:   {
+
+  actions: {
     authClient() {
       return get(this, 'otc').authenticate(
         get(this, 'config.username'),
@@ -213,15 +217,20 @@ export default Ember.Component.extend(NodeDriver, {
       options.filterBy('selected', true).forEach((cap) => {
         return selectedOptions.push(cap.value);
       });
-
+      console.debug(`Selected security groups: ${selectedOptions}`)
       set(this, 'config.secGroups', selectedOptions);
+    },
+
+    goToStep4() {
+      set(this, 'errors', [])
+      set(this, 'step', 4)
     },
 
   },
 
   validate() {
     this._super(...arguments)
-    let errors = get(this, 'errors')
+    const errors = []
 
     if (!get(this, 'config.flavorId')) {
       errors.push('Flavor is required')
@@ -231,7 +240,7 @@ export default Ember.Component.extend(NodeDriver, {
       errors.push('Image is required')
     }
 
-    this.set('errors', errors)
+    set(this, 'errors', errors)
     return errors.length === 0
   },
 
@@ -282,6 +291,28 @@ export default Ember.Component.extend(NodeDriver, {
     set(this, 'authFieldsMissing', missing)
   }),
 
+  projectChoices:       [],
+  projectChoicesUpdate: observer('config.username', 'config.password', 'config.domainName', function () {
+    if (!(
+      get(this, 'config.username') &&
+      get(this, 'config.password') &&
+      get(this, 'config.domainName')
+    )) {
+      return []
+    }
+    return this.otc.authenticate(
+      get(this, 'config.username'),
+      get(this, 'config.password'),
+      get(this, 'config.domainName'),
+      ''
+    ).then(() => {
+      return this.otc.listProjects().then(projects => {
+        const projectCh = projects.map(p => ({ label: p.name, value: p.name }))
+        set(this, 'projectChoices', projectCh)
+      })
+    })
+  }),
+
   loadLanguage(lang) {
     const translation = languages[lang]
     const intl = get(this, 'intl')
@@ -298,7 +329,7 @@ export default Ember.Component.extend(NodeDriver, {
   updateVPCs: function () {
     return this.otc.listVPCs().then(vpcs => {
       set(this, 'vpcs', vpcs)
-      console.log(`VPCs: ${vpcs}`)
+      console.log(`VPCs: ${JSON.stringify(vpcs)}`)
       return resolve()
     }).catch((e) => {
       console.error(`Failed to get VPCs: ${e}`)
@@ -343,39 +374,31 @@ export default Ember.Component.extend(NodeDriver, {
     })
   }),
 
-  keyPairChoices: computed('authSuccess', function () {
+  azChoices: a2f(availabilityZones),
+
+  imageChoices: computed('authSuccess', function () {
     if (!get(this, 'authSuccess')) {
       return []
     }
-    return this.otc.listKeyPairs().then(keyPairs => {
-      console.log('Received key pairs: ', keyPairs)
-      return keyPairs.map((k) => {
-        let name = k.keypair.name
-        if (name.length > 20) {
-          name = name.substring(0, 17) + '...'
-        }
+    return this.otc.listNodeImages().then(images => {
+      return images.map(i => {
         return {
-          label: `${name} (${k.keypair.fingerprint})`,
-          value: k.keypair.name
+          label: i.name,
+          value: i.id,
         }
       })
-    }).catch(() => {
-      console.log('Failed to load key pairs')
-      return reject()
     })
   }),
 
-  azChoices: a2f(availabilityZones),
-
   sgChoices: [],
-  sgUpdate: observer('authSuccess', function () {
+  sgUpdate:  observer('authSuccess', function () {
     if (!get(this, 'authSuccess')) {
       return
     }
     return this.otc.listSecurityGroups().then(groups => {
       console.log(`Got groups: ${JSON.stringify(groups)}`)
-      const choices = groups.map((g) => {
-        return  {
+      const choices = groups.map(g => {
+        return {
           label: `${g.name} (${g.id})`,
           value: g.id
         }
@@ -387,15 +410,28 @@ export default Ember.Component.extend(NodeDriver, {
     })
   }),
 
-  configChanged: observer('config', function () {
-    const cfg = get(this, 'config')
-    console.log(`Config: ${JSON.stringify(cfg)}`)
-  }),
-
   languageChanged: observer('intl.locale', function () {
     const lang = get(this, 'intl.locale')
     if (lang) {
       this.loadLanguage(lang[0])
     }
   }),
+
+  readyForStep4: computed('config.secGroups', 'config.subnetId', function () {
+    return get(this, 'config.secGroups').length && get(this, 'config.subnetId')
+  }),
+
+  refreshDefaults: observer('authSuccess', function () {
+    if (!get(this, 'authSuccess')) {
+      return
+    }
+    const defaultImageName = get(this, 'config.imageName')
+    get(this, 'imageChoices').then(images => {
+      const defaultImageId = images.find(i => i.label === defaultImageName, images).value
+      set(this, 'config.imageId', defaultImageId)
+    })
+  }),
+
+  volumeTypeChoices: a2f(diskTypes),
+
 })

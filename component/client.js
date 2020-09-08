@@ -1,5 +1,5 @@
 const appjson = 'application/json;charset=utf-8'
-const authURL = 'https://iam.eu-de.otc.t-systems.com/v3/auth/tokens'
+const authURL = 'https://iam.eu-de.otc.t-systems.com/v3'
 
 const defaultDNS = ['100.125.4.25', '8.8.8.8']
 
@@ -27,6 +27,50 @@ function viaProxy(url) {
   return `/meta/proxy/${url}`
 }
 
+const validImageProperties = {
+  visibility:    'public',
+  protected:     true,
+  __support_kvm: true,
+  __os_type:     'Linux',
+  __os_bit:      64,
+}
+
+function authData(username, password, domainName, projectName) {
+  const data = {
+    "auth": {
+      "identity": {
+        "methods":  [
+          "password"
+        ],
+        "password": {
+          "user": {
+            "name":     username,
+            "password": password,
+            "domain":   {
+              "name": domainName,
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (projectName) {
+    data['auth']['scope'] = {
+      "project": {
+        "name": projectName,
+      }
+    }
+  } else {
+    data['auth']['scope'] = {
+      "domain": {
+        "name": domainName,
+      }
+    }
+  }
+
+  return data
+}
 
 /**
  * @typedef OpenTelekomCloudClient
@@ -44,8 +88,9 @@ function viaProxy(url) {
  */
 function otcClient(region) {
   return {
-    vpcEndpoint:  '',
-    novaEndpoint: '',
+    vpcEndpoint:    '',
+    novaEndpoint:   '',
+    glanceEndpoint: '',
 
     commonHeaders: {
       accepts:     appjson,
@@ -60,38 +105,21 @@ function otcClient(region) {
      * @param {string} projectName
      */
     authenticate(username, password, domainName, projectName) {
-      const json = JSON.stringify({
-        "auth": {
-          "identity": {
-            "methods":  [
-              "password"
-            ],
-            "password": {
-              "user": {
-                "name":     username,
-                "password": password,
-                "domain":   {
-                  "name": domainName,
-                }
-              }
-            }
-          },
-          "scope":    {
-            "project": {
-              "name": projectName,
-            }
-          }
-        }
-      })
+      const json = JSON.stringify(authData(username, password, domainName, projectName))
       console.log('Authorizing client: ' + json)
 
       return $.post({
-        url:         viaProxy(authURL),
+        url:         `${viaProxy(authURL)}/auth/tokens`,
         contentType: appjson,
         data:        json,
       }).then((response, _, jqXHR) => {
         const token = response.token
         console.log('Received token', JSON.stringify(token))
+        this.commonHeaders['X-Auth-Token'] = jqXHR.getResponseHeader('x-subject-token')
+        if (token.catalog === undefined) {
+          console.log('No service catalog provided')
+          return resolve()
+        }
         // fill endpoints
         token.catalog.forEach((srv) => {
           switch (srv.name) {
@@ -103,9 +131,12 @@ function otcClient(region) {
               console.log('vpc: ', JSON.stringify(srv))
               this.vpcEndpoint = viaProxy(withRegion(srv, region))
               break
+            case 'glance':
+              console.log('ims: ', JSON.stringify(srv))
+              this.glanceEndpoint = viaProxy(withRegion(srv, region))
+              break
           }
         })
-        this.commonHeaders['X-Auth-Token'] = jqXHR.getResponseHeader('x-subject-token')
         return resolve()
       }).catch(e => {
         return reject(e.responseText)
@@ -118,6 +149,18 @@ function otcClient(region) {
         url:     this.novaEndpoint + '/flavors'
       }).then(body => {
         return resolve(body.flavors)
+      }).catch(e => {
+        return reject(e.responseText)
+      })
+    },
+
+    listNodeImages() {
+      return $.get({
+        headers: this.commonHeaders,
+        url:     this.glanceEndpoint + '/v2/cloudimages',
+        data:    validImageProperties,
+      }).then(body => {
+        return resolve(body.images)
       }).catch(e => {
         return reject(e.responseText)
       })
@@ -284,6 +327,17 @@ function otcClient(region) {
         url:     `${this.vpcEndpoint}/security-groups`,
       }).then(data => {
         return resolve(data.security_groups)
+      }).catch(e => {
+        return reject(e)
+      })
+    },
+
+    listProjects() {
+      return $.get({
+        headers: this.commonHeaders,
+        url:     `${viaProxy(authURL)}/auth/projects`
+      }).then(data => {
+        return resolve(data.projects)
       }).catch(e => {
         return reject(e)
       })
