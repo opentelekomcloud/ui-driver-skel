@@ -1,59 +1,322 @@
 <section class="horizontal-form">
-  {{#accordion-list showExpandAll=false as | al expandFn |}}
-    {{!-- This line shows the driver title which you don't have to change it --}}
-    <div class="over-hr mb-20"><span>{{driverOptionsTitle}}</span></div>
-
-    {{!-- An example input option --}}
-    <div class="row box mt-20">
-      <h4>Instance Options</h4>
-      <div class="row">
-        <div class="col span-2 col-inline">
-          <label>CPUs</label>
+  <div class="container-fluid">
+    <form>
+      <div class="over-hr r-mt20 r-mb20">
+        <span>{{t 'machine.driverOtc.access'}}</span>
+      </div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.osUserDomainName'}}</label>
         </div>
-
-        <div class="col span-1">
-          {{config.cpuCount}}
-        </div>
-        <div class="col span-3">
-          {{input-slider value=config.cpuCount valueMin=1 valueMax=32}}
-        </div>
-
-        <div class="col span-2 col-inline">
-          <label>Memory Size</label>
-        </div>
-        <div class="col span-4">
-          <div class="input-group">
-            {{input-integer min=1 value=config.memorySize classNames="form-control"}}
-            <div class="input-group-addon bg-default">MB</div>
-          </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 1)}}
+            {{input type="text"
+                    class="form-control"
+                    name="tenant-id"
+                    value=config.domainName
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.domainName}}</div>
+          {{/if}}
         </div>
       </div>
-    </div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.osUsername'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 1)}}
+            {{input type="text"
+                    class="form-control"
+                    name="username"
+                    value=config.username
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.username}}</div>
+          {{/if}}
+        </div>
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.osPassword'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 1)}}
+            {{input type="password"
+                    class="form-control"
+                    name="access-key-secret"
+                    value=config.password
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{t 'machine.driverOtc.provided.password'}}</div>
+          {{/if}}
+        </div>
+      </div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.osProjectName'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 1)}}
+            {{new-select class="form-control"
+                         name="project-name"
+                         content=projectChoices
+                         value=config.projectName
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.projectName}}</div>
+          {{/if}}
+        </div>
+      </div>
+      {{#if (eq step 1)}}
+        <div class="footer-actions">
+          {{#if itemsLoading}}
+            <button class="btn btn-primary"><i class="icon icon-spinner icon-spin"></i> {{t 'generic.loading'}}</button>
+          {{else}}
+            {{#if authFieldsMissing}}
+              <button class="btn btn-primary" disabled>{{t 'machine.driverOtc.next.availability'}}</button>
+            {{else}}
+              <button class="btn btn-primary" {{action 'authClient'}} name="submit">{{t
+                      'machine.driverOtc.next.availability'}}</button>
+            {{/if}}
+          {{/if}}
+        </div>
+      {{/if}}
+    </form>
+    {{#if (and (eq step 2) (not vpcs))}}
+      <div class="text-center">
+        <i class="icon icon-spinner icon-spin"></i> {{t 'machine.driverOtc.loadingAvailability'}}
+      </div>
+    {{/if}}
+    {{#if (and (gte step 2) vpcs)}}
+      <div class="over-hr r-mt20 r-mb20">
+        <span>{{t 'machine.driverOtc.availableZone.header'}}</span>
+      </div>
 
-    {{!-- This following contains the Name, Labels and Engine Options fields --}}
-    <div class="over-hr"><span>{{templateOptionsTitle}}</span></div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.availableZone.label.zone'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 2)}}
+            {{searchable-select
+                    classNames="form-control"
+                    content=azChoices
+                    value=config.availabilityZone
+                    selected=config.availabilityZone
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.availabilityZone}}</div>
+          {{/if}}
+        </div>
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.vpcAndSecurity.vpc'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 2)}}
+            {{searchable-select
+                    classNames="form-control"
+                    content=vpcChoices
+                    value=config.vpcId
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.vpcId}}</div>
+          {{/if}}
+        </div>
+      </div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.availableZone.label.region'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          <div class="form-control-static text-muted">{{config.region}}</div>
+        </div>
+      </div>
+      {{#if (eq step 2)}}
+        <div class="footer-actions">
+          {{#if itemsLoading}}
+            <button class="btn btn-primary"><i class="icon icon-spinner icon-spin"></i> {{t 'generic.loading'}}</button>
+          {{else}}
+            {{#if (and config.availabilityZone config.vpcId)}}
+              <button class="btn btn-primary" {{action 'goToStep3'}} name="submit">{{t
+                      'machine.driverOtc.next.networks'}}</button>
+            {{else}}
+              <button class="btn btn-primary" disabled>{{t 'machine.driverOtc.next.networks'}}</button>
+            {{/if}}
+          {{/if}}
+        </div>
+      {{/if}}
+    {{/if}}
 
-    {{form-name-description
-      model=model
-      nameRequired=true
-    }}
+    {{#if (and (eq step 3) (not subnets))}}
+      <div class="text-center">
+        <i class="icon icon-spinner icon-spin"></i> {{t 'machine.driverOtc.loadingNetworks'}}
+      </div>
+    {{/if}}
 
-    {{form-user-labels
-      initialLabels=labelResource.labels
-      setLabels=(action 'setLabels')
-      expandAll=expandAll
-      expand=(action expandFn)
-    }}
+    {{#if (and (gte step 3) subnets)}}
+      <div class="over-hr r-mt20 r-mb20">
+        <span>{{t 'machine.driverOtc.vpcAndSecurity.header'}}</span>
+      </div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.vpcAndSecurity.subnet'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 3)}}
+            {{searchable-select
+                    classNames="form-control"
+                    content=subnetChoices
+                    value=config.subnetId
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.subnetId}}</div>
+          {{/if}}
+        </div>
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.vpcAndSecurity.security'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 3)}}
+            <select multiple="multiple"
+                    class="form-control existing-security-groups"
+                    onchange={{action "multiSecurityGroupSelect" ""}}
+            >
+              {{#each sgChoices as |choice|}}
+                <option value={{choice.value}}
+                        selected={{array-includes config.secGroups choice.value}}
+                >
+                  {{choice.label}}
+                </option>
+              {{else}}
+                Please create security groups via console
+              {{/each}}
+            </select>
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.secGroups}}</div>
+          {{/if}}
+        </div>
+      </div>
+      {{#if (eq step 3)}}
+        <div class="footer-actions">
+          {{#if itemsLoading}}
+            <button class="btn btn-primary"><i class="icon icon-spinner icon-spin"></i> {{t 'generic.loading'}}</button>
+          {{else}}
+            {{#if readyForStep4}}
+              <button class="btn btn-primary" {{action 'goToStep4'}} name="submit">{{t
+                      'machine.driverOtc.next.instance'}}</button>
+            {{else}}
+              <button class="btn btn-primary" disabled>{{t 'machine.driverOtc.next.instance'}}</button>
+            {{/if}}
+          {{/if}}
+        </div>
+      {{/if}}
+    {{/if}}
 
-    {{form-engine-opts
-      machine=model
-      showEngineUrl=showEngineUrl
-    }}
-  {{/accordion-list}}
+    {{#if (eq step 4)}}
+      <div class="over-hr r-mt20 r-mb20">
+        <span>{{t 'machine.driverOtc.instance.options'}}</span>
+      </div>
 
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.instance.flavorid'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 4)}}
+            {{searchable-select
+                    classNames="form-control"
+                    content=nodeFlavorChoices
+                    value=config.flavorId
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.flavorId}}</div>
+          {{/if}}
+        </div>
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.instance.images'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 4)}}
+            {{searchable-select
+                    classNames="form-control"
+                    content=imageChoices
+                    value=config.imageId
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.imageName}}</div>
+          {{/if}}
+        </div>
+      </div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.instance.sshUser'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{input type="text"
+                  class="form-control"
+                  value=config.sshUser
+          }}
+        </div>
+      </div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.instance.rootVolume'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          <div class="input-group">
+            {{input type="number"
+                    class="form-control"
+                    value=config.rootVolumeSize
+            }}
+            <span class="input-group-addon">GB</span>
+          </div>
+        </div>
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.instance.rootVolumeType'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{new-select
+                  classNames="form-control"
+                  content=volumeTypeChoices
+                  value=config.rootVolumeType
+          }}
+        </div>
+      </div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.instance.size'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{input type="number"
+                  class="form-control"
+                  value=config.bandwidthSize
+          }}
+        </div>
+      </div>
+      {{!-- This component shows the Create and Cancel buttons --}}
+      {{save-cancel save="save" cancel="cancel"}}
+    {{/if}}
+  </div>
+  {{form-name-description
+          model=model
+          nameRequired=true
+          rowClass="row mb-10"
+  }}
+
+  {{form-user-labels
+          initialLabels=labelResource.labels
+          setLabels=(action "setLabels")
+          expand=(action expandFn)
+  }}
+
+  {{form-node-taints
+          model=model
+          expand=(action expandFn)
+  }}
+
+  {{form-engine-opts
+          machine=model
+          showEngineUrl=showEngineUrl
+  }}
   {{!-- This component shows errors produced by validate() in the component --}}
   {{top-errors errors=errors}}
-
-  {{!-- This component shows the Create and Cancel buttons --}}
-  {{save-cancel save="save" cancel="cancel"}}
 </section>
