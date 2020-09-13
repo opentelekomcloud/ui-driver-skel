@@ -35,7 +35,8 @@
     "jshint": "2.9.7",
     "minimist": ">=1.2.3",
     "replace-string": "^2.0.0",
-    "yargs": "^15.4.1"
+    "yargs": "^15.4.1",
+    "yargs-parser": ">=13.1.2"
   },
   "dependencies": {
     "moment": "^2.27.0"
