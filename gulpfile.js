@@ -12,17 +12,24 @@ const replaceString = require('replace-string');
 
 
 const NAME_TOKEN = '%%DRIVERNAME%%';
+const VERSION_TOKEN = '%%DRIVERVERSION%%';
 
 const BASE = 'component/';
 const DIST = 'dist/';
 const TMP = 'tmp/';
 const ASSETS = 'assets/';
 const DRIVER_NAME = 'otc';
+const DRIVER_VERSION = argv['ui-version'];
 
 console.log('Driver Name:', DRIVER_NAME);
+console.log('Driver Version:', DRIVER_VERSION);
 
 if (!DRIVER_NAME) {
   console.log('Please include a driver name with the --name flag');
+  process.exit(1);
+}
+if (!DRIVER_VERSION) {
+  console.log('Please include a driver version with the --ui-version flag');
   process.exit(1);
 }
 
@@ -82,6 +89,7 @@ gulp.task('babel', gulp.series('assets', function () {
   ])
     .pipe(replace('const LAYOUT;', `const LAYOUT = "${hbs}";`))
     .pipe(replace(NAME_TOKEN, DRIVER_NAME))
+    .pipe(replace(VERSION_TOKEN, DRIVER_VERSION))
     .pipe(babel(babelOpts))
     .pipe(gulpConcat(`component.js`, { newLine: ';\n' }))
     .pipe(gulp.dest(TMP));
