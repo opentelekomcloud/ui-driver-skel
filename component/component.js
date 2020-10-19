@@ -452,4 +452,6 @@ export default Ember.Component.extend(NodeDriver, {
 
   volumeTypeChoices: a2f(diskTypes),
 
+  version: '%%DRIVERVERSION%%',
+
 })
