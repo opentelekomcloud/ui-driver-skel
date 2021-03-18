@@ -1,5 +1,6 @@
 /*!!!!!!!!!!!Do not change anything between here (the DRIVERNAME placeholder will be automatically replaced at buildtime)!!!!!!!!!!!*/
 import NodeDriver from 'shared/mixins/node-driver'
+import oms from '@opentelekomcloud/oms'
 // do not remove LAYOUT, it is replaced at build time with a base64 representation of the template of the hbs template
 // we do this to avoid converting template to a js file that returns a string and the cors issues that would come along
 // with that
@@ -32,6 +33,12 @@ const availabilityZones = [
   'eu-de-02',
   'eu-de-03',
 ]
+
+const authURL = 'https://iam.eu-de.otc.t-systems.com/v3'
+
+const defaultBandwidth = 100
+const defaultFloatingIPType = '5_bgp'
+const defaultShareType = 'PER'
 
 const ubuntuRegex = new RegExp('_[Uu]buntu_')
 
@@ -117,6 +124,20 @@ const languages = {
 
 const region = 'eu-de'
 
+//=require ../vendor/*.js
+
+/**
+ * Convert external URL to rancher meta proxy's URL
+ * @param {string} url
+ * @returns {string}
+ */
+function viaProxy(url) {
+  const serverURL = window.location
+  const baseURL = `${serverURL.protocol}//${serverURL.host}`
+  url = url.replace('://', ':/')
+  return `${baseURL}/meta/proxy/${url}`
+}
+
 export default Ember.Component.extend(NodeDriver, {
   driverName: '%%DRIVERNAME%%',
   config:     alias('model.%%DRIVERNAME%%Config'),
@@ -134,14 +155,12 @@ export default Ember.Component.extend(NodeDriver, {
   vpcs:         [],
   subnet:       null,
 
-  authSuccess:  false,
-  subnets:      [],
-  vpcEndpoint:  '',
-  novaEndpoint: '',
-  newVPC:       { create: false, name: '', cidr: '192.168.0.0/16' },
-  newSubnet:    { create: false, name: '', cidr: '192.168.0.0/24', gatewayIP: '192.168.0.1' },
+  authSuccess: false,
+  subnets:     [],
+  newVPC:      { create: false, name: '', cidr: '192.168.0.0/16' },
+  newSubnet:   { create: false, name: '', cidr: '192.168.0.0/16', gatewayIP: '192.168.0.1' },
 
-  otc: null,
+  client: oms.Client = null,
 
   init() {
     // This does on the fly template compiling, if you mess with this :cry:
@@ -159,9 +178,10 @@ export default Ember.Component.extend(NodeDriver, {
 
   // Write your component here, starting with setting 'model' to a machine with your config populated
   bootstrap: function () {
+    let configField = get(this, 'configField')
     let config = get(this, 'globalStore').createRecord({
       type:             '%%DRIVERNAME%%Config',
-      region:           'eu-de',
+      region:           region,
       username:         '',
       password:         '',
       domainName:       '',
@@ -177,30 +197,43 @@ export default Ember.Component.extend(NodeDriver, {
     })
 
     set(this, 'config', config)
-    set(this, 'model.%%DRIVERNAME%%Config', config)
+    set(this, 'model.${configField}', config)
+    set(this, 'cluster.driver', get(this, 'driverName'));
 
     const lang = get(this, 'session.language') || 'en-us'
     get(this, 'intl.locale')
     this.loadLanguage(lang)
 
-    set(this, 'otc', otcClient(region))
-
     console.log(`Config: ${JSON.stringify(config)}`)
   },
 
   actions: {
-    authClient() {
-      return get(this, 'otc').authenticate(
-        get(this, 'config.username'),
-        get(this, 'config.password'),
-        get(this, 'config.domainName'),
-        get(this, 'config.projectName'),
-      ).then(() => {
+    authClient(domainName, username, password, projectName) {
+      const client = new oms.Client({
+        auth: {
+          auth_url:     authURL,
+          domain_name:  domainName,
+          username:     username,
+          password:     password,
+          project_name: projectName,
+        }
+      })
+      // proxy should be the last handler, after the signature calculation
+      client.httpClient.beforeRequest.last = (config) => {
+        if (config.baseURL !== '') {
+          config.baseURL = viaProxy(config.baseURL)
+        } else {
+          config.url = viaProxy(config.url)
+        }
+        return config
+      }
+      return client.authenticate().then(() => {
+        set(this, 'client', client)
+        set(this, 'token', client.tokenID)
         set(this, 'authSuccess', true)
-        set(this, 'errors', [])
         set(this, 'step', 2)
         return resolve()
-      }).catch(e => {
+      }).catch((e) => {
         set(this, 'errors', [e])
         return reject()
       })
@@ -246,7 +279,8 @@ export default Ember.Component.extend(NodeDriver, {
   },
 
   createVPC(cb) {
-    return get(this, 'otc').createVPC(
+    const srv = get(this, 'client').getService(oms.VpcV1)
+    return srv.createVPC(
       get(this, 'newVPC.name'),
       get(this, 'newVPC.cidr'),
     ).then(vpcID => {
@@ -262,13 +296,14 @@ export default Ember.Component.extend(NodeDriver, {
     })
   },
   createSubnet(cb) {
-    return get(this, 'otc').createSubnet(
-      get(this, 'config.vpcId'),
-      get(this, 'newSubnet.name'),
-      get(this, 'newSubnet.cidr'),
-      get(this, 'newSubnet.gatewayIP'),
-    ).then(subnetID => {
-      set(this, 'config.subnetId', subnetID)
+    const srv = get(this, 'client').getService(oms.VpcV1)
+    return srv.createSubnet({
+      vpc_id:     get(this, 'config.vpcId'),
+      name:       get(this, 'newSubnet.name'),
+      cidr:       get(this, 'newSubnet.cidr'),
+      gateway_ip: get(this, 'newSubnet.gatewayIP'),
+    }).then(subnet => {
+      set(this, 'config.subnetId', subnet.id)
       set(this, 'newSubnet.name', '')
       set(this, 'newSubnet.create', false)
       set(this, 'errors', [])
@@ -294,21 +329,24 @@ export default Ember.Component.extend(NodeDriver, {
 
   projectChoices:       [],
   projectChoicesUpdate: observer('config.username', 'config.password', 'config.domainName', function () {
-    if (!(
-      get(this, 'config.username') &&
-      get(this, 'config.password') &&
-      get(this, 'config.domainName')
-    )) {
+    const username = get(this, 'config.username')
+    const password = get(this, 'config.password')
+    const domainName = get(this, 'config.domainName')
+    if (!(username && password && domainName)) {
       return []
     }
-    return this.otc.authenticate(
-      get(this, 'config.username'),
-      get(this, 'config.password'),
-      get(this, 'config.domainName'),
-      ''
-    ).then(() => {
-      return this.otc.listProjects().then(projects => {
-        const projectCh = projects.map(p => ({ label: p.name, value: p.name }))
+    const client = new oms.Client({
+      auth: {
+        auth_url:    authURL,
+        domain_name: domainName,
+        username:    username,
+        password:    password,
+      }
+    })
+    return client.authenticate().then(() => {
+      const srv = get(this, 'client').getService(oms.IdentityV3)
+      return srv.listProjects().then(projects => {
+        const projectCh = projects.map(p => ({ label: p.name, value: p.id }))
         set(this, 'projectChoices', projectCh)
       })
     })
@@ -328,7 +366,8 @@ export default Ember.Component.extend(NodeDriver, {
     return vpcs.map((vpc) => ({ label: `${vpc.name} (${vpc.id})`, value: vpc.id }))
   }),
   updateVPCs: function () {
-    return this.otc.listVPCs().then(vpcs => {
+    const srv = get(this, 'client').getService(oms.VpcV1)
+    return srv.listVPCs().then(vpcs => {
       set(this, 'vpcs', vpcs)
       console.log(`VPCs: ${JSON.stringify(vpcs)}`)
       return resolve()
@@ -352,7 +391,8 @@ export default Ember.Component.extend(NodeDriver, {
     if (!vpcId) {
       return []
     }
-    return get(this, 'otc').listSubnets(vpcId).then(subnets => {
+    const srv = get(this, 'client').getService(oms.VpcV1)
+    return srv.listSubnets(vpcId).then(subnets => {
       console.log('Subnets: ', subnets)
       set(this, 'subnets', subnets)
       return resolve()
@@ -367,7 +407,7 @@ export default Ember.Component.extend(NodeDriver, {
   }),
 
   nodeFlavorChoices: computed('authSuccess', function () {
-    return this.otc.listNodeFlavors().then(flavors => {
+    return get(this, 'client').listFlavors().then(flavors => {
       console.log('Flavors: ', flavors)
       return flavors.map((f) => ({ label: f.name, value: f.id }))
     }).catch(() => {
@@ -381,8 +421,10 @@ export default Ember.Component.extend(NodeDriver, {
     if (!get(this, 'authSuccess')) {
       return []
     }
-    return this.otc.listNodeImages().then(images => {
-      return images.map(i => {
+    const srv = get(this, 'client').getService(oms.ComputeV2)
+    const pager = srv.listImages()
+    return pager.all().then(page => {
+      return page.images.map(i => {
         return {
           label: i.name,
           value: i.id,
@@ -396,7 +438,8 @@ export default Ember.Component.extend(NodeDriver, {
     if (!get(this, 'authSuccess')) {
       return
     }
-    return this.otc.listSecurityGroups().then(groups => {
+    const srv = get(this, 'client').getService(oms.VpcV1)
+    return srv.listSecurityGroups().then(groups => {
       console.log(`Got groups: ${JSON.stringify(groups)}`)
       const choices = groups.map(g => {
         return {

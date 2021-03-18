@@ -5,6 +5,7 @@ const gulpConcat = require('gulp-concat');
 const gulpConnect = require('gulp-connect');
 const replace = require('gulp-replace');
 const babel = require('gulp-babel');
+const include = require('gulp-include')
 const argv = require('yargs').argv;
 const pkg = require('./package.json');
 const fs = require('fs');
@@ -18,8 +19,9 @@ const BASE = 'component/';
 const DIST = 'dist/';
 const TMP = 'tmp/';
 const ASSETS = 'assets/';
-const DRIVER_NAME = 'otc';
-const DRIVER_VERSION = argv['ui-version'];
+const DRIVER_NAME = argv.name || pkg.name.replace(/^ui-driver-/, '');;
+const DRIVER_VERSION = pkg.version;
+const DEBUG = argv.debug
 
 console.log('Driver Name:', DRIVER_NAME);
 console.log('Driver Version:', DRIVER_VERSION);
@@ -56,6 +58,21 @@ gulp.task('assets', gulp.series('styles', function () {
     .pipe(gulp.dest(DIST));
 }));
 
+const plugins = [
+  "add-module-exports",
+  [
+    "transform-es2015-modules-amd", {
+    "noInterop": true,
+  }
+  ]
+]
+
+if (!DEBUG) {
+  plugins.push("transform-remove-console")
+} else {
+  console.log('DEBUG MODE! console.log calls won\'t be removed')
+}
+
 gulp.task('babel', gulp.series('assets', function () {
   const babelOpts = {
     presets: [
@@ -66,14 +83,7 @@ gulp.task('babel', gulp.series('assets', function () {
           }
         }]
     ],
-    plugins: [
-      "add-module-exports",
-      [
-        "transform-es2015-modules-amd", {
-          "noInterop": true,
-        }
-      ]
-    ],
+    plugins: plugins,
     comments: false,
     moduleId: `nodes/components/driver-${DRIVER_NAME}/component`
   }
@@ -87,6 +97,10 @@ gulp.task('babel', gulp.series('assets', function () {
   return gulp.src([
     `${BASE}component.js`
   ])
+    .pipe(include({
+      extensions: 'js',
+    }))
+    .on('error', console.log)
     .pipe(replace('const LAYOUT;', `const LAYOUT = "${hbs}";`))
     .pipe(replace(NAME_TOKEN, DRIVER_NAME))
     .pipe(replace(VERSION_TOKEN, DRIVER_VERSION))
@@ -125,16 +139,7 @@ gulp.task('rexport', gulp.series('babel', function () {
     .pipe(gulp.dest(TMP));
 }));
 
-gulp.task('client', gulp.series('rexport', function () {
-  return gulp.src([
-    `${BASE}client.js`
-  ])
-    .pipe(replace(NAME_TOKEN, DRIVER_NAME))
-    .pipe(gulpConcat(`client.js`, { newLine: '\n' }))
-    .pipe(gulp.dest(TMP));
-}));
-
-gulp.task('compile', gulp.series('client', function () {
+gulp.task('compile', gulp.series('rexport', function () {
   return gulp.src([
     `${TMP}**.js`
   ])
