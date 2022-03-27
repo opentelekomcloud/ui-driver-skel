@@ -33,7 +33,7 @@
     "gulp-replace": "1.0.0",
     "gulp-sourcemaps": "2.6.4",
     "jshint": "2.9.7",
-    "minimist": ">=1.2.3",
+    "minimist": ">=1.2.6",
     "replace-string": "^2.0.0",
     "yargs": "^15.4.1",
     "yargs-parser": ">=13.1.2"
