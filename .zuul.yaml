@@ -1,0 +1,11 @@
+---
+- project:
+    merge-mode: squash-merge
+    check:
+      jobs:
+        - name: js-build-ubuntu
+            js_build_command: "build --ui-version SNAPSHOT"
+    gate:
+      jobs:
+        - name: js-build-ubuntu
+            js_build_command: "build --ui-version SNAPSHOT"
