@@ -39,6 +39,6 @@
     "yargs-parser": ">=13.1.2"
   },
   "dependencies": {
-    "moment": "^2.27.0"
+    "moment": "^2.29.2"
   }
 }
