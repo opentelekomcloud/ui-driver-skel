@@ -32,11 +32,11 @@
     "gulp-jshint": "2.1.0",
     "gulp-replace": "1.0.0",
     "gulp-sourcemaps": "2.6.4",
-    "jshint": "2.9.7",
+    "jshint": "^2.13.6",
     "minimist": ">=1.2.6",
     "replace-string": "^2.0.0",
-    "yargs": "^15.4.1",
-    "yargs-parser": ">=13.1.2"
+    "yargs": "^17.7.2",
+    "yargs-parser": "^21.1.1"
   },
   "dependencies": {
     "moment": "^2.29.4"
