@@ -1,5 +1,4 @@
 const appjson = 'application/json;charset=utf-8'
-const authURL = 'https://iam.eu-de.otc.t-systems.com/v3'
 
 const defaultDNS = ['100.125.4.25', '8.8.8.8']
 
@@ -84,9 +83,10 @@ function authData(username, password, domainName, projectName) {
 /**
  * Create new client object
  * @param region
+ * @param authUrl
  * @return {OpenTelekomCloudClient}
  */
-function otcClient(region) {
+function otcClient(region, authUrl) {
   return {
     vpcEndpoint:    '',
     novaEndpoint:   '',
@@ -109,7 +109,7 @@ function otcClient(region) {
       console.log('Authorizing client: ' + json)
 
       return $.post({
-        url:         `${viaProxy(authURL)}/auth/tokens`,
+        url:         `${viaProxy(authUrl)}/auth/tokens`,
         contentType: appjson,
         data:        json,
       }).then((response, _, jqXHR) => {
@@ -335,7 +335,7 @@ function otcClient(region) {
     listProjects() {
       return $.get({
         headers: this.commonHeaders,
-        url:     `${viaProxy(authURL)}/auth/projects`
+        url:     `${viaProxy(authUrl)}/auth/projects`
       }).then(data => {
         return resolve(data.projects)
       }).catch(e => {
