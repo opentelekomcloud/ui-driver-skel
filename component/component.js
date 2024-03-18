@@ -25,7 +25,7 @@ const defaultRadix = 10
 const defaultBase = 1024
 /*!!!!!!!!!!!GLOBAL CONST END!!!!!!!!!!!*/
 
-const regions = ['eu-de', 'eu-nl', 'eu-ch2', 'ssss']
+const regions = ['eu-de', 'eu-nl', 'eu-ch2']
 const diskTypesAll = ['SATA', 'SAS', 'SSD']
 const diskTypesCH = ['SAS', 'SSD']
 const availabilityZonesDE = [
