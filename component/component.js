@@ -25,12 +25,22 @@ const defaultRadix = 10
 const defaultBase = 1024
 /*!!!!!!!!!!!GLOBAL CONST END!!!!!!!!!!!*/
 
-const diskTypes = ['SATA', 'SAS', 'SSD']
-
-const availabilityZones = [
+const regions = ['eu-de', 'eu-nl', 'eu-ch2']
+const diskTypesAll = ['SATA', 'SAS', 'SSD']
+const diskTypesCH = ['SAS', 'SSD']
+const availabilityZonesDE = [
   'eu-de-01',
   'eu-de-02',
   'eu-de-03',
+]
+const availabilityZonesNL = [
+  'eu-nl-01',
+  'eu-nl-02',
+  'eu-nl-03',
+]
+const availabilityZonesCH = [
+  'eu-ch2a',
+  'eu-ch2b',
 ]
 
 const ubuntuRegex = new RegExp('_[Uu]buntu_')
@@ -42,6 +52,41 @@ const ubuntuRegex = new RegExp('_[Uu]buntu_')
  */
 function a2f(src) {
   return src.map((v) => ({ label: v, value: v }))
+}
+
+/**
+ * Return proper availability zones based on region
+ * @param region {string}
+ * @returns {string[]}
+ */
+function azs(region) {
+  let availabilityZones
+  if (region === 'eu-de'){
+    availabilityZones = availabilityZonesDE
+  }
+  if (region === 'eu-nl'){
+    availabilityZones = availabilityZonesNL
+  }
+  if (region === 'eu-ch2'){
+    availabilityZones = availabilityZonesCH
+  }
+  return availabilityZones
+}
+
+/**
+ * Return proper disk types based on region
+ * @param region {string}
+ * @returns {string[]}
+ */
+function diskTypesList(region) {
+  let disks
+  if (region === 'eu-de' || region === 'eu-nl') {
+    disks = diskTypesAll
+  }
+  if (region === 'eu-ch2'){
+    disks = diskTypesCH
+  }
+  return disks
 }
 
 const languages = {
@@ -71,6 +116,7 @@ const languages = {
         "osPassword":          "Password",
         "osUserDomainName":    "Domain Name",
         "osProjectName":       "Project Name",
+        "osRegionName":        "Region Name",
         "availableZone":       {
           "header":   "Availability",
           "label":    {
@@ -115,8 +161,6 @@ const languages = {
   }
 }
 
-const region = 'eu-de'
-
 export default Ember.Component.extend(NodeDriver, {
   driverName: '%%DRIVERNAME%%',
   config:     alias('model.%%DRIVERNAME%%Config'),
@@ -127,7 +171,7 @@ export default Ember.Component.extend(NodeDriver, {
   _prevStep:    1,
   errors:       [],
   intl:         service(),
-  volumeTypes:  a2f(diskTypes),
+  volumeTypes:  [],
   itemsLoading: false,
   flavors:      [],
   images:       [],
@@ -161,11 +205,11 @@ export default Ember.Component.extend(NodeDriver, {
   bootstrap: function () {
     let config = get(this, 'globalStore').createRecord({
       type:             '%%DRIVERNAME%%Config',
-      region:           'eu-de',
+      region:           regions[0],
       username:         '',
       password:         '',
       domainName:       '',
-      projectName:      'eu-de',
+      projectName:      '',
       availabilityZone: '',
       vpcId:            '',
       subnetId:         '',
@@ -183,7 +227,7 @@ export default Ember.Component.extend(NodeDriver, {
     get(this, 'intl.locale')
     this.loadLanguage(lang)
 
-    set(this, 'otc', otcClient(region))
+    // set(this, 'otc', otcClient(config.region, authURL))
 
     console.log(`Config: ${JSON.stringify(config)}`)
   },
@@ -291,7 +335,21 @@ export default Ember.Component.extend(NodeDriver, {
     )
     set(this, 'authFieldsMissing', missing)
   }),
-
+  authUrlChange:     observer('config.region', function () {
+    const regionName = String(get(this, 'config.region'))
+    let authURL = 'https://iam.' + regionName + '.otc.t-systems.com/v3'
+    if (regionName === 'eu-ch2'){
+      authURL = 'https://iam-pub.' + regionName + '.sc.otc.t-systems.com/v3'
+    }
+    set(this, 'config.authUrl', authURL)
+    set(this, 'otc', otcClient(regionName, authURL))
+  }),
+  regionChoices:        a2f(regions),
+  azChoices:            computed('config.region', function () {
+    const r = String(get(this, 'config.region'))
+    console.log(`Region changed to ${r}. Checking available az choices... `)
+    return a2f(azs(r))
+  }),
   projectChoices:       [],
   projectChoicesUpdate: observer('config.username', 'config.password', 'config.domainName', function () {
     if (!(
@@ -375,8 +433,6 @@ export default Ember.Component.extend(NodeDriver, {
     })
   }),
 
-  azChoices: a2f(availabilityZones),
-
   imageChoices: computed('authSuccess', function () {
     if (!get(this, 'authSuccess')) {
       return []
@@ -449,8 +505,11 @@ export default Ember.Component.extend(NodeDriver, {
       set(this, 'config.sshUser', 'linux')
     }
   }),
-
-  volumeTypeChoices: a2f(diskTypes),
+  volumeTypeChoices:       computed('config.region', function () {
+    const r = String(get(this, 'config.region'))
+    console.log(`Region changed to ${r}. Checking available disk types choices... `)
+    return a2f(diskTypesList(r))
+  }),
 
   version: '%%DRIVERVERSION%%',
 

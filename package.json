@@ -18,27 +18,30 @@
   },
   "homepage": "https://github.com/opentelekomcloud/ui-driver-otc",
   "devDependencies": {
-    "@babel/core": "^7.11.5",
-    "@babel/preset-env": "^7.11.5",
-    "@rancher/ember-shared": "0.0.6",
+    "@babel/core": "^7.2.2",
+    "@babel/preset-env": "^7.2.3",
+    "@opentelekomcloud/oms": "^0.1.6",
     "babel-plugin-add-module-exports": "^1.0.2",
     "babel-plugin-transform-es2015-modules-amd": "^6.24.1",
+    "babel-plugin-transform-remove-console": "^6.9.4",
     "del": "3.0.0",
     "gulp": "4.0.0",
+    "gulp-append": "^0.3.4",
     "gulp-babel": "^8.0.0",
     "gulp-clean": "0.4.0",
     "gulp-concat": "2.6.1",
     "gulp-connect": "5.7.0",
+    "gulp-include": "^2.4.1",
     "gulp-jshint": "2.1.0",
     "gulp-replace": "1.0.0",
     "gulp-sourcemaps": "2.6.4",
-    "jshint": "^2.13.6",
-    "minimist": ">=1.2.6",
+    "is-cidr": "^4.0.2",
+    "is-ip": "^3.1.0",
+    "jshint": "2.13.6",
+    "lodash.template": ">=4.5.0",
+    "minimist": "^1.2.8",
     "replace-string": "^2.0.0",
-    "yargs": "^17.7.2",
-    "yargs-parser": "^21.1.1"
-  },
-  "dependencies": {
-    "moment": "^2.29.4"
+    "yargs": "^15.3.1",
+    "yargs-parser": ">=13.1.2"
   }
 }
