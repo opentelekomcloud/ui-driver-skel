@@ -205,7 +205,7 @@ export default Ember.Component.extend(NodeDriver, {
   bootstrap: function () {
     let config = get(this, 'globalStore').createRecord({
       type:             '%%DRIVERNAME%%Config',
-      region:           regions[0],
+      region:           '',
       username:         '',
       password:         '',
       domainName:       '',

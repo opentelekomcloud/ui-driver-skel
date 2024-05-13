@@ -25,6 +25,24 @@
       </div>
       <div class="row r-mb10">
         <div class="col-sm-12 col-md-2 form-label">
+          <label class="form-control-static">{{t 'machine.driverOtc.osRegionName'}}</label>
+        </div>
+        <div class="col-sm-12 col-md-4">
+          {{#if (eq step 1)}}
+            {{searchable-select class="form-control"
+                         placeholder="Please select region first"
+                         name="region-name"
+                         content=regionChoices
+                         selected=""
+                         value=config.region
+            }}
+          {{else}}
+            <div class="form-control-static text-muted text-italic">{{config.projectName}}</div>
+          {{/if}}
+        </div>
+      </div>
+      <div class="row r-mb10">
+        <div class="col-sm-12 col-md-2 form-label">
           <label class="form-control-static">{{t 'machine.driverOtc.osUserDomainName'}}</label>
         </div>
         <div class="col-sm-12 col-md-4">
