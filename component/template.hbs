@@ -13,9 +13,11 @@
         </div>
         <div class="col-sm-12 col-md-4">
           {{#if (eq step 1)}}
-            {{new-select class="form-control"
+            {{searchable-select class="form-control"
+                         placeholder="Please select region first"
                          name="region-name"
                          content=regionChoices
+                         selected=""
                          value=config.region
             }}
           {{else}}
