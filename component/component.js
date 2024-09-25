@@ -438,6 +438,7 @@ export default Ember.Component.extend(NodeDriver, {
       return []
     }
     return this.otc.listNodeImages().then(images => {
+      console.log('Images: ', images)
       return images.map(i => {
         return {
           label: i.name,
