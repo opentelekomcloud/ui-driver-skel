@@ -29,7 +29,6 @@ function viaProxy(url) {
 const validImageProperties = {
   visibility:    'public',
   protected:     true,
-  __support_kvm: true,
   __os_type:     'Linux',
   __os_bit:      64,
 }
